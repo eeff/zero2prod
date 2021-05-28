@@ -11,7 +11,10 @@ async fn main() -> std::io::Result<()> {
     init_subscriber(subcriber);
 
     let configuration = get_configuration().expect("Failed to read configuration.");
-    let address = format!("127.0.0.1:{}", configuration.application_port);
+    let address = format!(
+        "{}:{}",
+        configuration.application.host, configuration.application.port
+    );
     let connection_string = configuration.database.connection_string();
     let connection_pool = PgPool::connect(&connection_string)
         .await
