@@ -10,6 +10,7 @@ The author also provides the [code] as supplementary material.
 ## Tool chains
 * Rust
   * actix-web
+  * reqwest
   * serde
   * sqlx
   * tracing
