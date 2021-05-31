@@ -2723,6 +2723,7 @@ dependencies = [
  "quickcheck_macros",
  "reqwest",
  "serde 1.0.126",
+ "serde_json",
  "sqlx",
  "tokio",
  "tracing",
