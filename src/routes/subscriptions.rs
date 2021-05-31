@@ -2,6 +2,7 @@ use actix_web::{web, HttpResponse};
 use chrono::Utc;
 use serde::Deserialize;
 use sqlx::PgPool;
+use std::convert::TryFrom;
 use uuid::Uuid;
 
 use crate::domain::{NewSubscriber, SubscriberEmail, SubscriberName};
@@ -10,6 +11,16 @@ use crate::domain::{NewSubscriber, SubscriberEmail, SubscriberName};
 pub struct FormData {
     email: String,
     name: String,
+}
+
+impl TryFrom<FormData> for NewSubscriber {
+    type Error = String;
+
+    fn try_from(form: FormData) -> Result<Self, Self::Error> {
+        let name = SubscriberName::parse(form.name)?;
+        let email = SubscriberEmail::parse(form.email)?;
+        Ok(NewSubscriber { email, name })
+    }
 }
 
 #[tracing::instrument(
@@ -24,11 +35,8 @@ pub async fn subscribe(
     form: web::Form<FormData>,
     pool: web::Data<PgPool>,
 ) -> Result<HttpResponse, HttpResponse> {
-    let name =
-        SubscriberName::parse(form.0.name).map_err(|_| HttpResponse::BadRequest().finish())?;
-    let email =
-        SubscriberEmail::parse(form.0.email).map_err(|_| HttpResponse::BadRequest().finish())?;
-    let new_subscriber = NewSubscriber { email, name };
+    let new_subscriber =
+        NewSubscriber::try_from(form.0).map_err(|_| HttpResponse::BadRequest().finish())?;
     insert_subcriber(&pool, &new_subscriber)
         .await
         .map_err(|_| HttpResponse::InternalServerError().finish())?;
