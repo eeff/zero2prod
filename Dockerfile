@@ -1,30 +1,3 @@
-############### Planner stage ###############
-FROM rust:1.49 AS planner
-
-WORKDIR /app
-
-RUN cargo install cargo-chef
-
-# Copy all files from our working environment
-COPY . .
-
-# Compute a lock-like file for our project
-RUN cargo chef prepare --recipe-path recipe.json
-
-
-############### Cacher stage ###############
-FROM rust:1.49 AS cacher
-
-WORKDIR /app
-
-RUN cargo install cargo-chef
-
-COPY --from=planner /app/recipe.json recipe.json
-
-# Build our project dependencies, not our application
-RUN cargo chef cook --release --recipe-path recipe.json
-
-
 ############### Builder stage ###############
 
 # We use the latest Rust stable release as base image
@@ -32,9 +5,12 @@ FROM rust:1.49 AS builder
 
 WORKDIR /app
 
-# Copy over the cached dependencies
-COPY --from=cacher /app/target target
-COPY --from=cacher $CARGO_HOME $CARGO_HOME
+RUN cargo install --locked --branch master \
+    --git https://github.com/eeff/cargo-build-deps
+
+# Build the dependencies
+COPY Cargo.toml Cargo.lock ./
+RUN cargo build-deps --release
 
 # Enforce sqlx offline mode
 ENV SQLX_OFFLINE true
