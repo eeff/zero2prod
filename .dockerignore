@@ -1,5 +1,13 @@
 .env
+.dockerignore
+.git
+.github/
+.gitignore
+.gitmodules
+spec.yml
 Dockerfile
+README.md
+examples/
 migrations/
 scripts/
 target/
