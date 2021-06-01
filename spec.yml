@@ -2,9 +2,8 @@ name: zero2prod
 region: sgp
 services:
   - name: zero2prod
-    image:
-      registry_type: DOCR
-      repository: zero2prod
+    dockerfile_path: Dockerfile
+    source_dir: .
     github:
       branch: main
       deploy_on_push: true
