@@ -6,6 +6,7 @@ use std::convert::TryFrom;
 use uuid::Uuid;
 
 use crate::domain::{NewSubscriber, SubscriberEmail, SubscriberName};
+use crate::email_client::EmailClient;
 
 #[derive(Deserialize)]
 pub struct FormData {
@@ -25,7 +26,7 @@ impl TryFrom<FormData> for NewSubscriber {
 
 #[tracing::instrument(
     name = "Adding a new subscriber",
-    skip(form, pool),
+    skip(form, pool, email_client),
     fields(
         email = %form.email,
         name = %form.name,
@@ -34,10 +35,14 @@ impl TryFrom<FormData> for NewSubscriber {
 pub async fn subscribe(
     form: web::Form<FormData>,
     pool: web::Data<PgPool>,
+    email_client: web::Data<EmailClient>,
 ) -> Result<HttpResponse, HttpResponse> {
     let new_subscriber =
         NewSubscriber::try_from(form.0).map_err(|_| HttpResponse::BadRequest().finish())?;
     insert_subcriber(&pool, &new_subscriber)
+        .await
+        .map_err(|_| HttpResponse::InternalServerError().finish())?;
+    send_confirmation_email(&email_client, new_subscriber)
         .await
         .map_err(|_| HttpResponse::InternalServerError().finish())?;
     Ok(HttpResponse::Ok().finish())
@@ -69,4 +74,27 @@ pub async fn insert_subcriber(
     })?;
 
     Ok(())
+}
+
+#[tracing::instrument(
+    name = "Send a confirmation email to a new subscriber",
+    skip(email_client, new_subscriber)
+)]
+pub async fn send_confirmation_email(
+    email_client: &EmailClient,
+    new_subscriber: NewSubscriber,
+) -> Result<(), reqwest::Error> {
+    let confirmation_link = "https://my-api.com/subscriptions/confirm";
+    let plain_body = format!(
+        "Welcome to our newsletter!\nVisit {} to confirm you subscription.",
+        confirmation_link
+    );
+    let html_body = format!(
+        "Welcome to our newsletter<br />\
+                Click <a href=\"{}\">here</a> to confirm your subscription",
+        confirmation_link
+    );
+    email_client
+        .send_email(new_subscriber.email, "Welcome!", &html_body, &plain_body)
+        .await
 }
